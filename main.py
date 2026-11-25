@@ -16,29 +16,35 @@ no randomness: the same bytes on every run.
 """
 
 import os
+import re
 import sys
 
 WORD = "Ringmaster"
 
+# A valid entry is exactly one word: 1-30 ASCII letters, nothing else.
+# A single regex enforces every part of the invariant at once, so no
+# separator (space, tab, newline, punctuation) can slip past the checks.
+WORD_RE = re.compile(r"[A-Za-z]{1,30}\Z")
+
 
 def main() -> int:
     text = WORD
-    if not 1 <= len(text) <= 30:
-        print(f"entry must be 1-30 characters, got {len(text)}", file=sys.stderr)
-        return 1
-    if not text.isascii() or not text.isalpha():
-        print("entry must be ASCII letters only", file=sys.stderr)
-        return 1
-    if text.strip() == "" or " " in text or "\n" in text or "\r" in text:
-        print("entry must be a single word", file=sys.stderr)
-        return 1
-    if text != text.strip():
-        print("entry must not start or end with whitespace", file=sys.stderr)
+    if WORD_RE.fullmatch(text) is None:
+        print(
+            "entry must be a single word of 1-30 ASCII letters, "
+            f"got {text!r}",
+            file=sys.stderr,
+        )
         return 1
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
-    os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "entry.txt"), "w", encoding="utf-8") as f:
-        f.write(text)
+    out_path = os.path.join(out_dir, "entry.txt")
+    try:
+        os.makedirs(out_dir, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8", newline="") as f:
+            f.write(text)
+    except OSError as exc:
+        print(f"cannot write entry to {out_path}: {exc}", file=sys.stderr)
+        return 1
     print(f"wrote {len(text)} characters to entry.txt")
     return 0
 
